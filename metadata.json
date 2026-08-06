@@ -1,0 +1,6 @@
+{
+  "name": "Selecon TV",
+  "description": "O'zbek tilidagi eng so'nggi va ommabop animelar platformasi. Yuqori sifatli dublyaj va qulay onlayn tomosha.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
