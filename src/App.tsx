@@ -1,448 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { ViewMode, Anime, User, UserRole } from './types';
-import { ANIME_DATABASE } from './data/animeData';
-import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
-import { HeroBanner } from './components/HeroBanner';
-import { AnimeSection } from './components/AnimeSection';
-import { LatestEpisodesSection } from './components/LatestEpisodesSection';
-import { AnimeDetail } from './components/AnimeDetail';
-import { VideoPlayer } from './components/VideoPlayer';
-import { GenresView } from './components/GenresView';
-import { SearchView } from './components/SearchView';
-import { FavoritesView } from './components/FavoritesView';
-import { AnimeCatalogView } from './components/AnimeCatalogView';
-import { AdminPanel } from './components/AdminPanel';
-import { ProfileView } from './components/ProfileView';
-import { AuthModal } from './components/AuthModal';
-import { supabaseService } from './services/supabaseService';
+import React, { useState } from 'react';
+import { ArrowRight, Check, ChevronLeft, Gift, Heart, Sparkles, Star, Trophy } from 'lucide-react';
 
-const INITIAL_USERS: User[] = [
-  {
-    id: 'owner-1',
-    email: 'bekiuz282@gmail.com',
-    name: 'Bek (Owner)',
-    role: 'admin',
-    createdAt: '2026-01-01',
-  },
-  {
-    id: 'admin-1',
-    email: 'admin@selecon.tv',
-    name: 'Administrator',
-    role: 'admin',
-    createdAt: '2026-01-05',
-  },
-  {
-    id: 'user-1',
-    email: 'user@selecon.tv',
-    name: 'Anime Ishqibozi',
-    role: 'user',
-    createdAt: '2026-02-01',
-  },
+const rounds = [
+  { title: 'Birinchi sir', question: 'Bugungi kun nimasi bilan boshqalardan farq qiladi?', options: ['Oddiy kun', 'Yangi bir xotira boshlanadi', 'Dushanba bo‘lgani uchun'], answer: 1, note: 'To‘g‘ri! Bugun sen uchun alohida sahifa ochiladi.' },
+  { title: 'Kichik xotira', question: 'Eng yaxshi sovg‘a qaysi?', options: ['Qimmat buyum', 'Samimiy e’tibor', 'Faqat shirinlik'], answer: 1, note: 'Aynan shunday. Eng chiroyli sovg‘a — chin dildan berilgan e’tibor.' },
+  { title: 'Oxirgi kalit', question: 'Syurprizni ochishga tayyormisan?', options: ['Hali emas', 'Albatta, ochamiz!'], answer: 1, note: 'Barcha kalitlar topildi. Endi eng yoqimli qismiga o‘tamiz!' }
 ];
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<ViewMode>('home');
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  // Dynamic Anime Database State with localStorage fallback
-  const [animeList, setAnimeList] = useState<Anime[]>(() => {
-    try {
-      const saved = localStorage.getItem('selecon_anime_db');
-      return saved ? JSON.parse(saved) : ANIME_DATABASE;
-    } catch {
-      return ANIME_DATABASE;
-    }
-  });
-
-  // Initial fetch from Supabase if configured
-  const refreshData = async () => {
-    if (supabaseService.isConfigured()) {
-      const remoteAnime = await supabaseService.getAllAnime();
-      if (remoteAnime !== null) {
-        setAnimeList(remoteAnime);
-      }
-      const remoteUsers = await supabaseService.getAllUsers();
-      if (remoteUsers && remoteUsers.length > 0) {
-        setUsers(remoteUsers);
-      }
-    }
+  const [step, setStep] = useState(-1);
+  const [choice, setChoice] = useState(null);
+  const [won, setWon] = useState(false);
+  const [name, setName] = useState('Aziz inson');
+  const [editing, setEditing] = useState(false);
+  const [party, setParty] = useState(false);
+  const current = rounds[Math.max(0, step)];
+  const next = () => {
+    if (choice === null || choice !== current.answer) return;
+    if (step === rounds.length - 1) { setWon(true); setParty(true); }
+    else { setStep(step + 1); setChoice(null); }
   };
-
-  useEffect(() => {
-    async function loadFromSupabase() {
-      if (supabaseService.isConfigured()) {
-        await refreshData();
-
-        // Restore active Supabase session user if present
-        const sessionUser = await supabaseService.getCurrentSessionUser();
-        if (sessionUser) {
-          setCurrentUser(sessionUser);
-        }
-      }
-    }
-    loadFromSupabase();
-  }, []);
-
-  // Save to localStorage ONLY when Supabase is NOT configured
-  useEffect(() => {
-    if (!supabaseService.isConfigured()) {
-      try {
-        localStorage.setItem('selecon_anime_db', JSON.stringify(animeList));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, [animeList]);
-
-  // Registered Users State
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      const saved = localStorage.getItem('selecon_users');
-      return saved ? JSON.parse(saved) : INITIAL_USERS;
-    } catch {
-      return INITIAL_USERS;
-    }
-  });
-
-  useEffect(() => {
-    if (!supabaseService.isConfigured()) {
-      try {
-        localStorage.setItem('selecon_users', JSON.stringify(users));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, [users]);
-
-  // Current Logged-in User State (Defaults to Owner Account for seamless access)
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem('selecon_current_user');
-      return saved ? JSON.parse(saved) : INITIAL_USERS[0];
-    } catch {
-      return INITIAL_USERS[0];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (currentUser) {
-        localStorage.setItem('selecon_current_user', JSON.stringify(currentUser));
-      } else {
-        localStorage.removeItem('selecon_current_user');
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, [currentUser]);
-
-  const [selectedAnime, setSelectedAnime] = useState<Anime | null>(animeList[0] || null);
-
-  // Automatically keep selectedAnime synced with current animeList
-  useEffect(() => {
-    if (animeList.length > 0) {
-      if (!selectedAnime || !animeList.some((a) => a.id === selectedAnime.id)) {
-        setSelectedAnime(animeList[0]);
-      }
-    }
-  }, [animeList]);
-  const [selectedEpisodeNumber, setSelectedEpisodeNumber] = useState<number>(1);
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('selecon_favorites');
-      return saved ? JSON.parse(saved) : ['solo-leveling', 'demon-slayer'];
-    } catch {
-      return ['solo-leveling', 'demon-slayer'];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('selecon_favorites', JSON.stringify(favorites));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [favorites]);
-
-  const handleToggleFavorite = (anime: Anime) => {
-    setFavorites((prev) =>
-      prev.includes(anime.id) ? prev.filter((id) => id !== anime.id) : [...prev, anime.id]
-    );
-  };
-
-  const isFavorite = (animeId: string) => favorites.includes(animeId);
-
-  const handleSelectAnime = (anime: Anime) => {
-    setSelectedAnime(anime);
-    setCurrentView('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleWatchAnime = (anime: Anime, episodeNumber: number = 1) => {
-    setSelectedAnime(anime);
-    setSelectedEpisodeNumber(episodeNumber);
-    setCurrentView('watch');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleNavigate = (view: ViewMode) => {
-    // Protected Admin Route Guard
-    if (view === 'admin') {
-      const isAdminUser =
-        currentUser &&
-        (currentUser.role === 'admin' || currentUser.email.toLowerCase() === 'bekiuz282@gmail.com');
-
-      if (!isAdminUser) {
-        setIsAuthModalOpen(true);
-        setCurrentView('admin'); // AdminPanel component displays security guard layout
-        return;
-      }
-    }
-
-    setCurrentView(view);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Admin Data Management Callbacks with Supabase Async Mirroring
-  const handleAddAnime = (newAnime: Anime) => {
-    setAnimeList((prev) => [newAnime, ...prev]);
-    if (supabaseService.isConfigured()) {
-      supabaseService.saveAnime(newAnime);
-    }
-  };
-
-  const handleUpdateAnime = (updatedAnime: Anime) => {
-    setAnimeList((prev) => prev.map((a) => (a.id === updatedAnime.id ? updatedAnime : a)));
-    if (selectedAnime && selectedAnime.id === updatedAnime.id) {
-      setSelectedAnime(updatedAnime);
-    }
-    if (supabaseService.isConfigured()) {
-      supabaseService.saveAnime(updatedAnime);
-    }
-  };
-
-  const handleDeleteAnime = (animeId: string) => {
-    setAnimeList((prev) => prev.filter((a) => a.id !== animeId));
-    if (selectedAnime && selectedAnime.id === animeId) {
-      setSelectedAnime(animeList.find((a) => a.id !== animeId) || null);
-    }
-    if (supabaseService.isConfigured()) {
-      supabaseService.deleteAnime(animeId);
-    }
-  };
-
-  const handleRegisterUser = (newUser: User) => {
-    setUsers((prev) => {
-      const exists = prev.some((u) => u.email.toLowerCase() === newUser.email.toLowerCase());
-      if (exists) {
-        return prev.map((u) => (u.email.toLowerCase() === newUser.email.toLowerCase() ? newUser : u));
-      }
-      return [...prev, newUser];
-    });
-    if (supabaseService.isConfigured()) {
-      supabaseService.saveUser(newUser);
-    }
-  };
-
-  const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-    );
-    if (currentUser && currentUser.id === userId) {
-      setCurrentUser((prev) => (prev ? { ...prev, role: newRole } : null));
-    }
-    if (supabaseService.isConfigured()) {
-      supabaseService.updateUserRole(userId, newRole);
-    }
-  };
-
-
-  const featuredAnime = animeList.filter((a) => a.featured);
-  const popularAnime = animeList.filter((a) => a.popular);
-  const trendingAnime = animeList.filter((a) => a.trending);
-  const newAnime = animeList.filter((a) => a.isNew);
-  const favoriteAnimeList = animeList.filter((a) => favorites.includes(a.id));
-
-  return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 flex flex-col font-sans">
-      {/* Navigation Header */}
-      <Navbar
-        currentView={currentView}
-        onNavigate={handleNavigate}
-        favoritesCount={favorites.length}
-        onSearchClick={() => handleNavigate('search')}
-        currentUser={currentUser}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-grow">
-        {currentView === 'home' && (
-          <div className="space-y-6">
-            {/* Hero Featured Slider */}
-            <HeroBanner
-              featuredAnimeList={featuredAnime.length > 0 ? featuredAnime : animeList.slice(0, 3)}
-              onWatchAnime={handleWatchAnime}
-              onSelectAnime={handleSelectAnime}
-              onToggleFavorite={handleToggleFavorite}
-              isFavorite={isFavorite}
-            />
-
-            {/* So'nggi Qismlar Section */}
-            <LatestEpisodesSection
-              allAnime={animeList}
-              onWatchAnime={handleWatchAnime}
-            />
-
-            {/* Mashhur Animelar Section */}
-            <AnimeSection
-              titleUz="Mashhur Animelar"
-              subtitleUz="Platformamizdagi eng ko'p ko'rilgan va sevib tomosha qilinadigan animelar"
-              iconType="flame"
-              animeList={popularAnime.length > 0 ? popularAnime : animeList.slice(0, 4)}
-              onSelectAnime={handleSelectAnime}
-              onWatchAnime={handleWatchAnime}
-              onToggleFavorite={handleToggleFavorite}
-              isFavorite={isFavorite}
-              onViewAll={() => handleNavigate('catalog')}
-            />
-
-            {/* Trenddagi Animelar Section */}
-            <AnimeSection
-              titleUz="Trenddagi Animelar"
-              subtitleUz="Hozirgi kunda dunyo va O'zbekiston bo'ylab eng ko'p muhokama qilinayotgan san'at asarlari"
-              iconType="trending"
-              animeList={trendingAnime.length > 0 ? trendingAnime : animeList.slice(0, 4)}
-              onSelectAnime={handleSelectAnime}
-              onWatchAnime={handleWatchAnime}
-              onToggleFavorite={handleToggleFavorite}
-              isFavorite={isFavorite}
-              onViewAll={() => handleNavigate('catalog')}
-            />
-
-            {/* Yangi Animelar Section */}
-            <AnimeSection
-              titleUz="Yangi Animelar"
-              subtitleUz="Yaqinda efirga uzatila boshlagan va dublyaj qilingan yangi mavsumlar"
-              iconType="sparkles"
-              animeList={newAnime.length > 0 ? newAnime : animeList.slice(0, 4)}
-              onSelectAnime={handleSelectAnime}
-              onWatchAnime={handleWatchAnime}
-              onToggleFavorite={handleToggleFavorite}
-              isFavorite={isFavorite}
-              onViewAll={() => handleNavigate('catalog')}
-            />
-          </div>
-        )}
-
-        {currentView === 'catalog' && (
-          <AnimeCatalogView
-            allAnime={animeList}
-            onSelectAnime={handleSelectAnime}
-            onWatchAnime={handleWatchAnime}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-          />
-        )}
-
-        {currentView === 'genres' && (
-          <GenresView
-            allAnime={animeList}
-            onSelectAnime={handleSelectAnime}
-            onWatchAnime={handleWatchAnime}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-          />
-        )}
-
-        {currentView === 'search' && (
-          <SearchView
-            allAnime={animeList}
-            onSelectAnime={handleSelectAnime}
-            onWatchAnime={handleWatchAnime}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-          />
-        )}
-
-        {currentView === 'favorites' && (
-          <FavoritesView
-            favoritesAnime={favoriteAnimeList}
-            onSelectAnime={handleSelectAnime}
-            onWatchAnime={handleWatchAnime}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite}
-            onExploreClick={() => handleNavigate('catalog')}
-          />
-        )}
-
-        {currentView === 'detail' && selectedAnime && (
-          <AnimeDetail
-            anime={selectedAnime}
-            onBack={() => handleNavigate('home')}
-            onWatchEpisode={(epNum) => handleWatchAnime(selectedAnime, epNum)}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={isFavorite(selectedAnime.id)}
-            onSelectAnime={handleSelectAnime}
-            allAnime={animeList}
-          />
-        )}
-
-        {currentView === 'watch' && selectedAnime && (
-          <VideoPlayer
-            anime={selectedAnime}
-            currentEpisodeNumber={selectedEpisodeNumber}
-            onSelectEpisode={(epNum) => setSelectedEpisodeNumber(epNum)}
-            onBack={() => handleSelectAnime(selectedAnime)}
-            onSelectAnime={handleSelectAnime}
-          />
-        )}
-
-        {currentView === 'admin' && (
-          <AdminPanel
-            currentUser={currentUser}
-            animeList={animeList}
-            onAddAnime={handleAddAnime}
-            onUpdateAnime={handleUpdateAnime}
-            onDeleteAnime={handleDeleteAnime}
-            users={users}
-            onUpdateUserRole={handleUpdateUserRole}
-            onNavigateHome={() => handleNavigate('home')}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            onRefreshData={refreshData}
-          />
-        )}
-
-        {currentView === 'profile' && (
-          <ProfileView
-            currentUser={currentUser}
-            onLogout={async () => {
-              if (supabaseService.isConfigured()) {
-                await supabaseService.signOut();
-              }
-              setCurrentUser(null);
-              handleNavigate('home');
-            }}
-            favoritesCount={favorites.length}
-            onNavigateToAdmin={() => handleNavigate('admin')}
-            onNavigateHome={() => handleNavigate('home')}
-          />
-        )}
-      </main>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onLogin={(user) => setCurrentUser(user)}
-        registeredUsers={users}
-        onRegister={handleRegisterUser}
-      />
-
-      {/* Footer */}
-      <Footer onNavigate={handleNavigate} />
-    </div>
-  );
+  return <main className="app-shell">
+    <div className="ambient ambient-one"/><div className="ambient ambient-two"/>
+    <div className="stars">{Array.from({length:32},(_,i)=><i key={i} style={{left:((i*29)%100)+'%',top:((i*43)%100)+'%',animationDelay:((i%8)*-.7)+'s'}}/>)}</div>
+    <div className="float-layer">{Array.from({length:16},(_,i)=><span key={i} style={{left:((i*37+9)%100)+'%',animationDelay:((i%7)*-1.8)+'s'}}>{i%3===0?'✦':i%3===1?'♡':'·'}</span>)}</div>
+    {party && <div className="confetti" onAnimationEnd={()=>setParty(false)}>{Array.from({length:55},(_,i)=><b key={i} style={{left:((i*17)%100)+'%',animationDelay:((i%9)*.04)+'s'}}/>)}</div>}
+    <header className="topbar"><a className="brand" href="#" onClick={e=>{e.preventDefault();setStep(-1);setWon(false);setChoice(null);}}><span className="brand-mark"><Sparkles size={17}/></span> little<span>moments</span></a><div className="top-tag"><i/> MADE WITH CARE</div></header>
+    <section className="content">
+      {!won && step === -1 && <div className="panel welcome-panel">
+        <div className="eyebrow"><Sparkles size={14}/> BUGUN SENING KUNING</div>
+        <div className="hero-orbit"><div className="orbit orbit-a"/><div className="orbit orbit-b"/><div className="gift-emoji">🎁</div><span className="orbit-star star-a">✦</span><span className="orbit-star star-b">✧</span></div>
+        <p className="overline">BIR OZ VAQT AJRAT</p><h1>Senga atalgan<br/><em>kichik mo‘jiza.</em></h1>
+        <p className="intro">Bu sahifada bir nechta sir yashiringan. Ularni birgalikda ochamizmi?</p>
+        <div className="name-row">{editing?<input value={name} onChange={e=>setName(e.target.value)} maxLength={28}/>:<span>{name}</span>}<button className="text-button" onClick={()=>setEditing(!editing)}>{editing?'Tayyor':'Ismni o‘zgartirish'}</button></div>
+        <button className="primary-button" onClick={()=>setStep(0)}>Sayohatni boshlash <ArrowRight size={18}/></button>
+        <div className="micro-note"><Heart size={12}/> Faqat sen uchun tayyorlangan</div>
+      </div>}
+      {!won && step >= 0 && <div className="panel quiz-panel">
+        <div className="quiz-top"><button className="back-button" onClick={()=>{setStep(step-1);setChoice(null);}}><ChevronLeft size={17}/> Orqaga</button><span>MAXFIY SAYOHAT <Sparkles size={13}/></span></div>
+        <div className="progress-meta"><span>0{step+1} <small>/ 0{rounds.length}</small></span><span>{Math.round(((step+1)/rounds.length)*100)}%</span></div>
+        <div className="progress-track"><div style={{width:(((step+1)/rounds.length)*100)+'%'}}/></div>
+        <div className="step-icon">{step===0?'🌙':step===1?'💜':'🗝️'}</div><p className="overline">{current.title.toUpperCase()}</p>
+        <h2>{current.question}</h2><p className="quiz-hint">Javobni tanla va keyingi sirga yo‘l och.</p>
+        <div className="options">{current.options.map((option,i)=><button key={option} className={'option '+(choice===i?'selected':'')} onClick={()=>setChoice(i)}><span className="option-letter">{String.fromCharCode(65+i)}</span><span>{option}</span>{choice===i&&<Check size={17}/>}</button>)}</div>
+        {choice!==null&&<div className="feedback"><Sparkles size={15}/>{choice===current.answer?current.note:'Yana bir o‘ylab ko‘r. Senga ishonaman!'}</div>}
+        <button className="primary-button full" disabled={choice===null||choice!==current.answer} onClick={next}>{step===rounds.length-1?'Syurprizni ochish':'Davom etish'} <ArrowRight size={18}/></button>
+        <div className="micro-note"><Heart size={12}/> Har bir javob seni syurprizga yaqinlashtiradi</div>
+      </div>}
+      {won && <div className="panel victory-panel">
+        <div className="victory-badge"><Trophy size={27}/></div><div className="eyebrow"><Star size={14}/> BARCHA SIRLAR OCHILDI <Star size={14}/></div>
+        <h1 className="victory-title">VICTORY<span>!</span></h1><p className="victory-sub">Tabriklaymiz, {name}!</p>
+        <div className="message-card"><div className="message-spark">✦</div><p>Hayoting quvonchli lahzalar, kutilmagan go‘zal uchrashuvlar va unutilmas xotiralarga to‘la bo‘lsin.</p><strong>Sen eng yaxshisiga loyiqsan. 💜</strong></div>
+        <div className="wish-grid"><div><span>✧</span><b>Baxt</b><small>Har kuni</small></div><div><span>♡</span><b>Mehr</b><small>Cheksiz</small></div><div><span>✦</span><b>Orzular</b><small>Ushalsin</small></div></div>
+        <button className="primary-button" onClick={()=>setParty(true)}>Yana bir bor bayram qil <Sparkles size={17}/></button>
+        <button className="restart-button" onClick={()=>{setStep(-1);setChoice(null);setWon(false);}}>Boshidan ko‘rish</button>
+        <div className="micro-note"><Heart size={12}/> Ushbu sahifa yaxshi kayfiyat uchun yaratildi</div>
+      </div>}
+    </section>
+    <footer className="footer"><span>✦</span> A LITTLE JOY, MADE JUST FOR YOU <span>✦</span></footer>
+  </main>;
 }
-
