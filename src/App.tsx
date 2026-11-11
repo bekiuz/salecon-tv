@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowDown, ArrowRight, Gift, Heart, MailOpen, Music2, Sparkles, Star } from 'lucide-react';
+import { ArrowDown, ArrowRight, Heart, Music2 } from 'lucide-react';
 
 export default function App() {
   const [opened, setOpened] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [sound, setSound] = useState(false);
 
   return <main className="birthday">
     <div className="night-sky" aria-hidden="true">
       {Array.from({length:54},(_,i)=><i key={i} style={{left:((i*41+7)%100)+'%',top:((i*67+3)%100)+'%',animationDelay:((i%9)*-.6)+'s'}} />)}
       <div className="moon-glow"/><div className="shooting-star"/>
     </div>
-    <header className="nav"><a className="wordmark" href="#top">X<span>.</span></a><div className="nav-note">A LETTER FOR XUSHNUD <span>✦</span></div><button className={'sound '+(sound?'active':'')} onClick={()=>setSound(!sound)} aria-label="Sound toggle"><Music2 size={16}/>{sound?'SOUND ON':'SOUND OFF'}</button></header>
+    <header className="nav"><a className="wordmark" href="#top">X<span>.</span></a><div className="nav-note">A LETTER FOR XUSHNUD <span>✦</span></div><div className="sound"><Music2 size={16}/> A PERSONAL NOTE</div></header>
     <section className="intro" id="top">
       <div className="date-line"><span/> A SPECIAL DAY <span/></div>
       <h1>Bugun osmon ham<br/><em>boshqacha porlaydi.</em></h1>
